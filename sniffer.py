@@ -1,10 +1,6 @@
-from scapy.all import sniff, IP, Raw
+from scapy.all import sniff, IP, Raw, get_if_list, show_interfaces
 from datetime import datetime
 
-
-# ==========================================
-# COMMON NETWORK SERVICES
-# ==========================================
 
 common_ports = {
     20: "FTP Data",
@@ -20,20 +16,12 @@ common_ports = {
 }
 
 
-# ==========================================
-# PACKET COUNTERS
-# ==========================================
-
 packet_count = 0
 tcp_count = 0
 udp_count = 0
 icmp_count = 0
 other_count = 0
 
-
-# ==========================================
-# PROGRAM HEADER
-# ==========================================
 
 print("\n" + "=" * 60)
 print("              BASIC NETWORK SNIFFER")
@@ -43,16 +31,65 @@ print("\nCapture Settings")
 print("-" * 60)
 
 
-# ==========================================
-# GET CAPTURE DURATION
-# ==========================================
+# ---------------------------------------------------------
+# SHOW AVAILABLE INTERFACES
+# ---------------------------------------------------------
+
+print("\nAvailable Network Interfaces")
+print("-" * 60)
+
+show_interfaces()
+
+print("-" * 60)
+
+
+# ---------------------------------------------------------
+# SELECT INTERFACE
+# ---------------------------------------------------------
+
+while True:
+
+    interface_choice = input(
+        "\nEnter the interface name or index "
+        "(for example: 16): "
+    ).strip()
+
+    if interface_choice == "16":
+
+        selected_interface = (
+            r"\Device\NPF_{C8766BE9-B1C5-4959-B6B7-D73F91F11CE1}"
+        )
+
+        print(
+            "\nSelected Wi-Fi interface:"
+        )
+
+        print(
+            "Intel(R) Dual Band Wireless-AC 8265"
+        )
+
+        break
+
+    else:
+
+        print(
+            "For this computer, enter 16 to select "
+            "the active Wi-Fi adapter."
+        )
+
+
+# ---------------------------------------------------------
+# CAPTURE DURATION
+# ---------------------------------------------------------
 
 while True:
 
     try:
 
         duration = int(
-            input("Enter capture duration in seconds: ")
+            input(
+                "Enter capture duration in seconds: "
+            )
         )
 
         if duration <= 0:
@@ -72,9 +109,9 @@ while True:
         )
 
 
-# ==========================================
-# GET PROTOCOL FILTER
-# ==========================================
+# ---------------------------------------------------------
+# PROTOCOL FILTER
+# ---------------------------------------------------------
 
 while True:
 
@@ -91,16 +128,14 @@ while True:
 
         break
 
-    else:
-
-        print(
-            "Invalid protocol. Choose TCP, UDP, ICMP, or ALL."
-        )
+    print(
+        "Invalid protocol. Choose TCP, UDP, ICMP, or ALL."
+    )
 
 
-# ==========================================
-# GET MINIMUM PACKET SIZE
-# ==========================================
+# ---------------------------------------------------------
+# PACKET SIZE FILTER
+# ---------------------------------------------------------
 
 while True:
 
@@ -130,13 +165,18 @@ while True:
         )
 
 
-# ==========================================
-# DISPLAY SELECTED SETTINGS
-# ==========================================
+# ---------------------------------------------------------
+# DISPLAY SETTINGS
+# ---------------------------------------------------------
 
 print("\n" + "-" * 60)
 print("Selected Settings")
 print("-" * 60)
+
+print(
+    "Network interface:    "
+    "Intel(R) Dual Band Wireless-AC 8265"
+)
 
 print(
     f"Capture duration:     {duration} seconds"
@@ -153,48 +193,77 @@ print(
 print("-" * 60)
 
 
-# ==========================================
+# ---------------------------------------------------------
 # OPEN LOG FILE
-# ==========================================
+# ---------------------------------------------------------
 
-log_file = open(
-    "network_log.txt",
-    "a",
-    encoding="utf-8"
-)
+try:
+
+    log_file = open(
+        "network_log.txt",
+        "a",
+        encoding="utf-8"
+    )
+
+except PermissionError:
+
+    print(
+        "\nERROR: Permission denied while opening "
+        "network_log.txt."
+    )
+
+    exit()
 
 
-# ==========================================
-# CREATE CAPTURE SESSION
-# ==========================================
+# ---------------------------------------------------------
+# SESSION LOG
+# ---------------------------------------------------------
 
 session_time = datetime.now().strftime(
     "%Y-%m-%d %H:%M:%S.%f"
 )[:-3]
 
 
-log_file.write("\n" + "=" * 60 + "\n")
-log_file.write("NEW PACKET CAPTURE SESSION\n")
+log_file.write(
+    "\n" + "=" * 60 + "\n"
+)
+
+log_file.write(
+    "NEW PACKET CAPTURE SESSION\n"
+)
+
 log_file.write(
     f"Started: {session_time}\n"
 )
+
+log_file.write(
+    "Network Interface: "
+    "Intel(R) Dual Band Wireless-AC 8265\n"
+)
+
 log_file.write(
     f"Duration: {duration} seconds\n"
 )
+
 log_file.write(
     f"Protocol Filter: {protocol_filter}\n"
 )
+
 log_file.write(
-    f"Minimum Packet Size: {min_packet_size} bytes\n"
+    f"Minimum Packet Size: "
+    f"{min_packet_size} bytes\n"
 )
-log_file.write("=" * 60 + "\n")
+
+log_file.write(
+    "=" * 60 + "\n"
+)
 
 log_file.flush()
 
 
-# ==========================================
-# PACKET CALLBACK FUNCTION
-# ==========================================
+# ---------------------------------------------------------
+# PACKET CALLBACK
+# ---------------------------------------------------------
 
 def packet_callback(packet):
 
@@ -205,266 +274,243 @@ def packet_callback(packet):
     global other_count
 
 
-    # Only process IP packets
-    if IP in packet:
+    if IP not in packet:
 
-        # ----------------------------------
-        # GET PROTOCOL
-        # ----------------------------------
+        return
 
-        protocol_number = packet[IP].proto
 
+    protocol_number = packet[IP].proto
 
-        if protocol_number == 6:
 
-            protocol = "TCP"
+    if protocol_number == 6:
 
-        elif protocol_number == 17:
+        protocol = "TCP"
 
-            protocol = "UDP"
+    elif protocol_number == 17:
 
-        elif protocol_number == 1:
+        protocol = "UDP"
 
-            protocol = "ICMP"
+    elif protocol_number == 1:
 
-        else:
+        protocol = "ICMP"
 
-            protocol = f"Other ({protocol_number})"
+    else:
 
+        protocol = f"Other ({protocol_number})"
 
-        # ----------------------------------
-        # APPLY PROTOCOL FILTER
-        # ----------------------------------
 
-        if (
-            protocol_filter != "ALL"
-            and protocol != protocol_filter
-        ):
+    # Protocol filter
 
-            return
+    if (
+        protocol_filter != "ALL"
+        and protocol != protocol_filter
+    ):
 
+        return
 
-        # ----------------------------------
-        # GET PACKET LENGTH
-        # ----------------------------------
 
-        packet_length = len(packet)
+    # Packet size filter
 
+    packet_length = len(packet)
 
-        # ----------------------------------
-        # APPLY SIZE FILTER
-        # ----------------------------------
+    if packet_length < min_packet_size:
 
-        if packet_length < min_packet_size:
+        return
 
-            return
 
+    packet_count += 1
 
-        # ----------------------------------
-        # COUNT PACKET
-        # ----------------------------------
 
-        packet_count += 1
+    timestamp = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S.%f"
+    )[:-3]
 
 
-        # ----------------------------------
-        # TIMESTAMP
-        # ----------------------------------
+    source_ip = packet[IP].src
 
-        timestamp = datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S.%f"
-        )[:-3]
+    destination_ip = packet[IP].dst
 
 
-        # ----------------------------------
-        # GET IP ADDRESSES
-        # ----------------------------------
+    # -----------------------------------------------------
+    # PORTS
+    # -----------------------------------------------------
 
-        source_ip = packet[IP].src
+    if packet.haslayer("TCP"):
 
-        destination_ip = packet[IP].dst
+        source_port = packet["TCP"].sport
 
+        destination_port = packet["TCP"].dport
 
-        # ----------------------------------
-        # GET PORTS
-        # ----------------------------------
+    elif packet.haslayer("UDP"):
 
-        if packet.haslayer("TCP"):
+        source_port = packet["UDP"].sport
 
-            source_port = packet["TCP"].sport
+        destination_port = packet["UDP"].dport
 
-            destination_port = packet["TCP"].dport
+    else:
 
-        elif packet.haslayer("UDP"):
+        source_port = "N/A"
 
-            source_port = packet["UDP"].sport
+        destination_port = "N/A"
 
-            destination_port = packet["UDP"].dport
 
-        else:
+    # -----------------------------------------------------
+    # COUNTERS
+    # -----------------------------------------------------
 
-            source_port = "N/A"
+    if protocol == "TCP":
 
-            destination_port = "N/A"
+        tcp_count += 1
 
+    elif protocol == "UDP":
 
-        # ----------------------------------
-        # UPDATE COUNTERS
-        # ----------------------------------
+        udp_count += 1
 
-        if protocol == "TCP":
+    elif protocol == "ICMP":
 
-            tcp_count += 1
+        icmp_count += 1
 
-        elif protocol == "UDP":
+    else:
 
-            udp_count += 1
+        other_count += 1
 
-        elif protocol == "ICMP":
 
-            icmp_count += 1
+    # -----------------------------------------------------
+    # SERVICE DETECTION
+    # -----------------------------------------------------
 
-        else:
+    source_service = common_ports.get(
+        source_port,
+        "Unknown"
+    )
 
-            other_count += 1
+    destination_service = common_ports.get(
+        destination_port,
+        "Unknown"
+    )
 
 
-        # ----------------------------------
-        # IDENTIFY SERVICES
-        # ----------------------------------
+    # -----------------------------------------------------
+    # PAYLOAD
+    # -----------------------------------------------------
 
-        source_service = common_ports.get(
-            source_port,
-            "Unknown"
-        )
+    if Raw in packet:
 
-        destination_service = common_ports.get(
-            destination_port,
-            "Unknown"
-        )
+        payload = packet[Raw].load
 
+        try:
 
-        # ----------------------------------
-        # GET PAYLOAD
-        # ----------------------------------
+            payload_preview = payload[:50].decode(
+                "utf-8",
+                errors="replace"
+            )
 
-        if Raw in packet:
+        except Exception:
 
-            payload = packet[Raw].load
+            payload_preview = str(
+                payload[:50]
+            )
 
-            try:
+    else:
 
-                payload_preview = payload[:50].decode(
-                    "utf-8",
-                    errors="replace"
-                )
+        payload_preview = "None"
 
-            except Exception:
 
-                payload_preview = str(
-                    payload[:50]
-                )
+    # -----------------------------------------------------
+    # DISPLAY PACKET
+    # -----------------------------------------------------
 
-        else:
+    print(f"\nPacket #{packet_count}")
 
-            payload_preview = "None"
+    print(
+        f"Time:             {timestamp}"
+    )
 
+    print(
+        f"Source IP:        {source_ip}"
+    )
 
-        # ==================================
-        # DISPLAY PACKET
-        # ==================================
+    print(
+        f"Destination IP:   {destination_ip}"
+    )
 
-        print(f"\nPacket #{packet_count}")
+    print(
+        f"Protocol:         {protocol}"
+    )
 
-        print(
-            f"Time:             {timestamp}"
-        )
+    print(
+        f"Source Port:      {source_port} "
+        f"({source_service})"
+    )
 
-        print(
-            f"Source IP:        {source_ip}"
-        )
+    print(
+        f"Destination Port: {destination_port} "
+        f"({destination_service})"
+    )
 
-        print(
-            f"Destination IP:   {destination_ip}"
-        )
+    print(
+        f"Packet Length:    {packet_length} bytes"
+    )
 
-        print(
-            f"Protocol:         {protocol}"
-        )
+    print(
+        f"Payload:          {payload_preview}"
+    )
 
-        print(
-            f"Source Port:      {source_port} "
-            f"({source_service})"
-        )
+    print("-" * 60)
 
-        print(
-            f"Destination Port: {destination_port} "
-            f"({destination_service})"
-        )
 
-        print(
-            f"Packet Length:    {packet_length} bytes"
-        )
+    # -----------------------------------------------------
+    # SAVE TO LOG
+    # -----------------------------------------------------
 
-        print(
-            f"Payload:          {payload_preview}"
-        )
+    log_file.write(
+        f"\nPacket #{packet_count}\n"
+    )
 
-        print("-" * 60)
+    log_file.write(
+        f"Time:             {timestamp}\n"
+    )
 
+    log_file.write(
+        f"Source IP:        {source_ip}\n"
+    )
 
-        # ==================================
-        # SAVE PACKET TO LOG
-        # ==================================
+    log_file.write(
+        f"Destination IP:   {destination_ip}\n"
+    )
 
-        log_file.write(
-            f"\nPacket #{packet_count}\n"
-        )
+    log_file.write(
+        f"Protocol:         {protocol}\n"
+    )
 
-        log_file.write(
-            f"Time:             {timestamp}\n"
-        )
+    log_file.write(
+        f"Source Port:      {source_port} "
+        f"({source_service})\n"
+    )
 
-        log_file.write(
-            f"Source IP:        {source_ip}\n"
-        )
+    log_file.write(
+        f"Destination Port: {destination_port} "
+        f"({destination_service})\n"
+    )
 
-        log_file.write(
-            f"Destination IP:   {destination_ip}\n"
-        )
+    log_file.write(
+        f"Packet Length:    {packet_length} bytes\n"
+    )
 
-        log_file.write(
-            f"Protocol:         {protocol}\n"
-        )
+    log_file.write(
+        f"Payload:          {payload_preview}\n"
+    )
 
-        log_file.write(
-            f"Source Port:      {source_port} "
-            f"({source_service})\n"
-        )
+    log_file.write(
+        "-" * 60 + "\n"
+    )
 
-        log_file.write(
-            f"Destination Port: {destination_port} "
-            f"({destination_service})\n"
-        )
+    log_file.flush()
 
-        log_file.write(
-            f"Packet Length:    {packet_length} bytes\n"
-        )
 
-        log_file.write(
-            f"Payload:          {payload_preview}\n"
-        )
-
-        log_file.write(
-            "-" * 60 + "\n"
-        )
-
-        log_file.flush()
-
-
-# ==========================================
+# ---------------------------------------------------------
 # START CAPTURE
-# ==========================================
+# ---------------------------------------------------------
 
 print("\n" + "=" * 60)
 print("              CAPTURE STARTED")
@@ -475,25 +521,46 @@ print(
 )
 
 print(
+    "Interface: Intel(R) Dual Band Wireless-AC 8265"
+)
+
+print(
     "Press Ctrl + C only if you need to stop manually."
 )
 
 print()
 
 
-# ==========================================
-# CAPTURE PACKETS
-# ==========================================
+try:
 
-sniff(
-    prn=packet_callback,
-    timeout=duration
-)
+    sniff(
+        iface=selected_interface,
+        prn=packet_callback,
+        timeout=duration
+    )
 
 
-# ==========================================
-# SAVE SUMMARY
-# ==========================================
+except PermissionError:
+
+    print(
+        "\nERROR: Permission denied."
+    )
+
+    print(
+        "Try running PowerShell as Administrator."
+    )
+
+
+except Exception as error:
+
+    print(
+        f"\nERROR during packet capture: {error}"
+    )
+
+
+# ---------------------------------------------------------
+# SUMMARY
+# ---------------------------------------------------------
 
 log_file.write(
     "\n\n========== Capture Summary ==========\n"
@@ -523,17 +590,8 @@ log_file.write(
     "=====================================\n"
 )
 
-
-# ==========================================
-# CLOSE LOG FILE
-# ==========================================
-
 log_file.close()
 
-
-# ==========================================
-# DISPLAY SUMMARY
-# ==========================================
 
 print("\n" + "=" * 60)
 print("              CAPTURE COMPLETE")
